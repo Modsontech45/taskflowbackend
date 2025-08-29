@@ -17,25 +17,39 @@ exports.getSubscription = async (req, res) => {
 
 // POST create subscription (with 7-day trial)
 exports.createSubscription = async (req, res) => {
-  const { userId, plan } = req.body;
   try {
+    const { plan } = req.body; // directly from req.body
+
+    if (!plan) {
+      return res.status(400).json({ message: "Plan is required" });
+    }
+
+    // Assuming user is identified via JWT (req.user.id)
+    const userId = req.user?.id; 
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    // Check if subscription exists
+    const existing = await prisma.subscription.findUnique({ where: { userId } });
+    if (existing) return res.status(400).json({ message: "Subscription already exists" });
+
     const subscription = await prisma.subscription.create({
       data: {
         userId,
-        plan: plan || "BASIC",
-        status: "TRIAL",
+        plan,
+        status: "ACTIVE",
         memberCount: 0,
-        monthlyPrice: plan === "BASIC" ? 0.0 : 10.0,
-        trialEndsAt: addDays(new Date(), 7),
-        nextBillingDate: addDays(new Date(), 7),
+        monthlyPrice: plan === "BASIC" ? 1.0 : 0.5,
+        nextBillingDate: new Date(),
       },
     });
+
     res.status(201).json(subscription);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 // PATCH update subscription (plan, status, memberCount)
 exports.updateSubscription = async (req, res) => {

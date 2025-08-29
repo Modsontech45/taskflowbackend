@@ -1,6 +1,8 @@
-// routes/subscriptionRoutes.js
+// routes.js
 const express = require("express");
 const router = express.Router();
+
+// ✅ Correct relative path for same folder
 const { getSubscription, createSubscription, updateSubscription } = require("./controller");
 
 router.get("/:userId", getSubscription);
