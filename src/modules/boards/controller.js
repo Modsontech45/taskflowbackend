@@ -9,16 +9,41 @@ exports.createBoard = async (req, res) => {
 
 exports.listBoards = async (req, res) => {
   const userId = req.user.id;
-  const boards = await prisma.board.findMany({
-    where: {
-      OR: [
-        { ownerId: userId },
-        { members: { some: { userId } } }
-      ]
-    },
-    include: { members: { select: { userId: true, role: true } } }
-  });
-  res.json(boards);
+
+  try {
+    const boards = await prisma.board.findMany({
+      where: {
+        OR: [
+          { ownerId: userId },
+          { members: { some: { userId } } }
+        ]
+      },
+      include: {
+        members: {
+          select: { userId: true, role: true }
+        },
+        _count: {
+          select: {
+            tasks: {
+              where: { isDone: false }   // count only active tasks
+            }
+          }
+        }
+      }
+    });
+
+    // Rename _count.tasks → activeTasks for frontend clarity
+    const formattedBoards = boards.map(b => ({
+      ...b,
+      activeTasks: b._count.tasks
+    }));
+
+    res.json(formattedBoards);
+
+  } catch (err) {
+    console.error("List Boards Error:", err);
+    res.status(500).json({ message: "Failed to list boards" });
+  }
 };
 
 exports.getBoard = async (req, res) => {
