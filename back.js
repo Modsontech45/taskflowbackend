@@ -14,17 +14,6 @@ enum BoardRole {
   VIEWER
 }
 
-enum SubscriptionPlan {
-  BASIC
-  TEAM
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  CANCELLED
-  TRIAL
-}
-
 model User {
   id              String   @id @default(uuid())
   firstName       String
@@ -43,22 +32,6 @@ model User {
   tasksCreated    Task[]          @relation("TasksCreated")
   verificationTokens VerificationToken[]
   passwordResetTokens PasswordResetToken[]
-  subscription    Subscription?
-}
-
-model Subscription {
-  id             String   @id @default(uuid())
-  userId         String   @unique
-  user           User     @relation(fields: [userId], references: [id])
-  plan           String
-  status         String   @default("TRIAL") // TRIAL | ACTIVE | PAST_DUE | CANCELED | EXPIRED
-  memberCount    Int      @default(0)
-  monthlyPrice   Float    @default(0.0)
-  trialEndsAt    DateTime?
-  nextBillingDate DateTime?
-   paystackCustomerId String?  // store Paystack customer id/token
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
 }
 
 model VerificationToken {
@@ -107,7 +80,6 @@ model BoardMember {
   @@unique([boardId, userId])
   @@index([userId, boardId])
 }
-
 model Task {
   id          String   @id @default(uuid())
   boardId     String
@@ -116,8 +88,8 @@ model Task {
   startAt     DateTime
   endAt       DateTime
   isDone      Boolean  @default(false)
-  doneAt      DateTime?
-  status      String   @default("pending") // "pending" | "expired"
+  doneAt      DateTime?      // New: store when task was marked as done
+  status      String   @default("pending") // New: "pending" or "expired"
   createdById String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -128,3 +100,36 @@ model Task {
   @@index([boardId])
   @@index([createdById])
 }
+
+
+
+exports.register = async (req, res) => {
+  const { firstName, lastName, country, phone, email, password } = req.body;
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) return res.status(409).json({ message: 'Email already registered' });
+
+  const hashed = await bcrypt.hash(password, 10);
+  const user = await prisma.user.create({
+    data: { firstName, lastName, country, phone, email, password: hashed },
+  });
+
+  const token = randomToken();
+  await prisma.verificationToken.create({
+    data: {
+      token,
+      userId: user.id,
+      expiresAt: addHours(new Date(), 24),
+    },
+  });
+
+  const link = `${APP_URL}/verify-email?token=${token}`;
+  await sendMail({
+    to: email,
+    subject: 'Verify your email',
+    html: `<p>Hello ${firstName},</p><p>Verify your account: <a href="${link}">Activate</a></p><p>This link expires in 24 hours.</p>`,
+  });
+  console.log('Verification link (dev):', link);
+
+  return res.status(201).json({ message: 'Registered. Check your email to verify.' });
+};
