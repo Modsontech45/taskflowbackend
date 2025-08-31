@@ -21,7 +21,7 @@ app.use((req, res, next) => {
 
 // CORS configuration
 const allowedOrigins = [
-  "http://localhost:8080",
+  "https://taskflow-dtiirope3-modsons-projects.vercel.app",
   "http://127.0.0.1:5500",
   "http://localhost:5173",
   "https://bolt.new",
