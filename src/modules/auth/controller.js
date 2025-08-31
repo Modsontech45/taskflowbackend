@@ -3,82 +3,50 @@ const bcrypt = require('bcryptjs');
 //const { addHours, addDays } = require("date-fns");
 const { randomToken, addHours, signJWT } = require('../../utils/tokens');
 const { sendMail } = require('../../config/mailer');
-const paystack = require('../../utils/paystack'); // your Paystack client
+//const paystack = require('../../utils/paystack'); // your Paystack client
 const APP_URL = process.env.APP_URL;
 
 exports.register = async (req, res) => {
-  try {
-    const { firstName, lastName, country, phone, email, password } = req.body;
+  const { firstName, lastName, country, phone, email, password } = req.body;
 
-    // Check if email exists
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) return res.status(409).json({ message: "Email already registered" });
+  // Check if email already exists
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) return res.status(409).json({ message: 'Email already registered' });
 
-    // Hash password
-    const hashed = await bcrypt.hash(password, 10);
+  // Hash password
+  const hashed = await bcrypt.hash(password, 10);
 
-    // ✅ Create Paystack customer
-    const paystackCustomer = await paystack.customer.create({
-      email,
-      first_name: firstName,
-      last_name: lastName,
-    });
-    const paystackCustomerId = paystackCustomer.data.customer_code;
+  // Create user
+  const user = await prisma.user.create({
+    data: { firstName, lastName, country, phone, email, password: hashed },
+  });
 
-    // ✅ Create user + trial subscription
-    const user = await prisma.user.create({
-      data: {
-        firstName,
-        lastName,
-        country,
-        phone,
-        email,
-        password: hashed,
-        subscription: {
-          create: {
-            plan: "BASIC",
-            status: "TRIAL",
-            memberCount: 0,
-            monthlyPrice: 1.0, // set normal price for future billing
-            trialEndsAt: addDays(new Date(), 7), // 7-day free trial
-            nextBillingDate: addDays(new Date(), 7), // first billing after trial
-            paystackCustomerId,
-          },
-        },
-      },
-      include: { subscription: true },
-    });
+  // Generate verification token
+  const token = randomToken();
+  await prisma.verificationToken.create({
+    data: {
+      token,
+      userId: user.id,
+      type: "EMAIL_VERIFICATION", // ✅ Required field
+      expiresAt: addHours(new Date(), 24),
+    },
+  });
 
-    // Generate email verification token
-    const token = randomToken();
-    await prisma.verificationToken.create({
-      data: {
-        token,
-        userId: user.id,
-        expiresAt: addHours(new Date(), 24),
-      },
-    });
+  // Send verification email
+  const link = `${APP_URL}/verify-email?token=${token}`;
+  await sendMail({
+    to: email,
+    subject: 'Verify your email',
+    html: `<p>Hello ${firstName},</p><p>Verify your account: <a href="${link}">Activate</a></p><p>This link expires in 24 hours.</p>`,
+  });
 
-    // Send email
-    const link = `${APP_URL}/verify-email?token=${token}`;
-    await sendMail({
-      to: email,
-      subject: "Verify your email",
-      html: `
-        <p>Hello ${firstName},</p>
-        <p>Verify your account: <a href="${link}">Activate</a></p>
-        <p>This link expires in 24 hours.</p>
-      `,
-    });
+  console.log('Verification link (dev):', link);
 
-    console.log("📧 Verification link (dev):", link);
-
-    return res.status(201).json({ message: "Registered. Check your email to verify." });
-  } catch (err) {
-    console.error("❌ Register error:", err);
-    return res.status(500).json({ message: "Server error" });
-  }
+  return res.status(201).json({ message: 'Registered. Check your email to verify.' });
 };
+
+
+
 exports.verifyEmail = async (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).json({ message: 'Missing token' });

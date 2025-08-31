@@ -1,16 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-require('./subscription/cronsub')//  auto-start cron
 
-const subscriptionRoutes = require("./subscription/routes");
+
+const subscriptionRoutes = require("./subscription/routes/subscriptions");
 
 const authRoutes = require('./modules/auth/routes');
 const boardRoutes = require('./modules/boards/routes');
 const taskRoutes = require('./modules/tasks/routes');
 const memberRoutes = require('./modules/members/routes');
 const { requireAuth } = require('./middleware/auth');
-const paystackRoutes = require("./subscription/paystack");
+const paymentsroutes = require("./subscription/routes/payments");
 const app = express();
 
 // Middleware to log all requests
@@ -52,7 +52,7 @@ app.get('/', (_, res) => res.send('Task API running'));
 // Auth routes — allow public routes for email verification & password reset
 app.use('/api/auth', authRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
-app.use("/api/paystack", paystackRoutes); // Paystack callback route
+app.use("/api/payments", paymentsroutes); // Paystack callback route
 
 app.use('/api/members',requireAuth(), memberRoutes);
 // Protected routes (require JWT)
