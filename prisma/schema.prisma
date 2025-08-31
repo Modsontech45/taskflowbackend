@@ -18,32 +18,30 @@ model User {
   emailVerifiedAt     DateTime?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
-
   boardsOwned         Board[]              @relation("BoardsOwned")
   memberships         BoardMember[]
+  notifications       Notification[]
   passwordResetTokens PasswordResetToken[]
+  payments            Payment[]
   subscriptions       Subscription[]
   tasksCreated        Task[]               @relation("TasksCreated")
   verificationTokens  VerificationToken[]
-  payments            Payment[]
-  notifications       Notification[]
 }
 
 model Subscription {
-  id                 String                @id @default(uuid())
+  id                 String             @id @default(uuid())
   userId             String
-  plan               SubscriptionPlan
-  status             SubscriptionStatus    @default(TRIAL)
-  memberCount        Int                   @default(0)
-  monthlyPrice       Float                 @default(0.0)
+  memberCount        Int                @default(0)
+  monthlyPrice       Float              @default(0.0)
   trialEndsAt        DateTime?
   nextBillingDate    DateTime?
   paystackCustomerId String?
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
-
-  user     User      @relation(fields: [userId], references: [id])
-  payments Payment[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  plan               SubscriptionPlan
+  status             SubscriptionStatus @default(TRIAL)
+  payments           Payment[]
+  user               User               @relation(fields: [userId], references: [id])
 }
 
 model Payment {
@@ -52,14 +50,13 @@ model Payment {
   userId            String
   subscriptionId    String
   amount            Float
-  status            String       @default("PENDING") // PENDING, SUCCESS, FAILED
+  status            String       @default("PENDING")
   paystackReference String?
   paidAt            DateTime?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
-
-  user         User         @relation(fields: [userId], references: [id])
-  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+  subscription      Subscription @relation(fields: [subscriptionId], references: [id])
+  user              User         @relation(fields: [userId], references: [id])
 }
 
 model Board {
@@ -68,7 +65,6 @@ model Board {
   ownerId   String
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
-
   owner     User          @relation("BoardsOwned", fields: [ownerId], references: [id], onDelete: Cascade)
   members   BoardMember[]
   tasks     Task[]
@@ -82,9 +78,8 @@ model BoardMember {
   userId    String
   role      BoardRole @default(VIEWER)
   createdAt DateTime  @default(now())
-
-  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  board     Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([boardId, userId])
   @@index([userId, boardId])
@@ -97,15 +92,14 @@ model Task {
   notes       String?
   startAt     DateTime
   endAt       DateTime
-  status      String    @default("pending") // pending, expired
   isDone      Boolean   @default(false)
-  doneAt      DateTime?
   createdById String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-
-  board     Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  createdBy User  @relation("TasksCreated", fields: [createdById], references: [id])
+  doneAt      DateTime?
+  status      String    @default("pending")
+  board       Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation("TasksCreated", fields: [createdById], references: [id])
 
   @@index([boardId])
   @@index([createdById])
@@ -120,34 +114,30 @@ model Notification {
   isRead    Boolean  @default(false)
   metadata  Json?
   createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
+  token     String    @unique
   userId    String
-  token     String   @unique
-  type      String   // EMAIL_VERIFICATION, PASSWORD_RESET
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  type      String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
+  token     String    @unique
   userId    String
-  token     String   @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// ===== ENUMS =====
 enum BoardRole {
   OWNER
   EDITOR
