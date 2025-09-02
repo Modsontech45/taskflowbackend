@@ -10,7 +10,7 @@ const boardRoutes = require('./modules/boards/routes');
 const taskRoutes = require('./modules/tasks/routes');
 const memberRoutes = require('./modules/members/routes');
 const { requireAuth } = require('./middleware/auth');
-const paymentsroutes = require("./subscription/routes/payments");
+// const paymentsroutes = require("./subscription/routes/payments");
 const app = express();
 
 // Middleware to log all requests
@@ -43,8 +43,8 @@ app.get('/', (_, res) => res.send('Task API running'));
 
 // Auth routes — allow public routes for email verification & password reset
 app.use('/api/auth', authRoutes);
-app.use("/api/subscriptions", subscriptionRoutes);
-app.use("/api/payments", paymentsroutes); // Paystack callback route
+// app.use("/api/subscriptions", subscriptionRoutes);
+// app.use("/api/payments", paymentsroutes); // Paystack callback route
 
 app.use('/api/members',requireAuth(), memberRoutes);
 // Protected routes (require JWT)
