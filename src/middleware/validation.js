@@ -1,6 +1,6 @@
-const Joi = require('joi');
 
-// Subscription validation schemas
+const Joi = require('joi');
+// ----- Subscription Validation Schemas -----
 const subscriptionSchemas = {
   create: Joi.object({
     plan: Joi.string().valid('BASIC', 'TEAM').required(),
@@ -11,7 +11,7 @@ const subscriptionSchemas = {
   }),
 };
 
-// Payment validation schemas
+// ----- Payment Validation Schemas -----
 const paymentSchemas = {
   initialize: Joi.object({
     subscriptionId: Joi.string().uuid().required(),
@@ -22,20 +22,21 @@ const paymentSchemas = {
   }),
 };
 
-// Generic validation middleware
+// ----- Generic Validation Middleware -----
 function validate(schema) {
   return (req, res, next) => {
     const { error } = schema.validate(req.body);
     if (error) {
       return res.status(400).json({
         message: 'Validation error',
-        details: error.details.map(detail => detail.message),
+        details: error.details.map(d => d.message),
       });
     }
     next();
   };
 }
 
+// ----- Exported Validators -----
 const validateSubscription = {
   create: validate(subscriptionSchemas.create),
   update: validate(subscriptionSchemas.update),
@@ -45,5 +46,4 @@ const validatePayment = {
   initialize: validate(paymentSchemas.initialize),
   verify: validate(paymentSchemas.verify),
 };
-
 module.exports = { validateSubscription, validatePayment };

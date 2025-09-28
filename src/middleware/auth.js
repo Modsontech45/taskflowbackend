@@ -1,5 +1,6 @@
+
+const pool = require('../config/db');
 const { verifyJWT } = require('../utils/tokens');
-const prisma = require('../config/prisma');
 
 function requireAuth(excludePaths = []) {
   return async (req, res, next) => {
@@ -23,7 +24,15 @@ function requireAuth(excludePaths = []) {
         return res.status(401).json({ message: 'Unauthorized' });
       }
 
-      const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+      // Query user from database
+      const result = await pool.query(
+        `SELECT id, "firstName", "lastName", email, country, phone, "emailVerifiedAt"
+         FROM "User"
+         WHERE id = $1`,
+        [payload.sub]
+      );
+
+      const user = result.rows[0];
       if (!user) {
         console.log(`❌ User not found for id: ${payload.sub}`);
         return res.status(401).json({ message: 'Unauthorized' });
@@ -37,5 +46,4 @@ function requireAuth(excludePaths = []) {
     }
   };
 }
-
 module.exports = { requireAuth };

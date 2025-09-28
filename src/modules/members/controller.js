@@ -1,65 +1,69 @@
-const prisma = require('../../config/prisma'); // adjust path if needed
+const pool = require("../../config/db");
 
-// Fetch all members of a board added by the owner
-async function listMembers(req, res) {
+// ---------------- LIST MEMBERS ----------------
+const listMembers = async (req, res) => {
   const { boardId } = req.params;
 
   try {
-    const members = await prisma.boardMember.findMany({
-      where: { boardId },
-      select: {
-        id: true,
-        role: true,
-        createdAt: true,
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
+    const result = await pool.query(
+      `SELECT bm.id, bm.role, bm."createdAt",
+              u.id AS "userId", u."firstName", u."lastName", u.email
+       FROM "BoardMember" bm
+       JOIN "User" u ON u.id = bm."userId"
+       WHERE bm."boardId" = $1
+       ORDER BY bm."createdAt" ASC`,
+      [boardId]
+    );
+
+    const members = result.rows.map(row => ({
+      id: row.id,
+      role: row.role,
+      createdAt: row.createdAt,
+      user: {
+        id: row.userId,
+        firstName: row.firstName,
+        lastName: row.lastName,
+        email: row.email,
       },
-      orderBy: { createdAt: 'asc' },
-    });
+    }));
 
     res.json({ members });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Failed to fetch members' });
+  } catch (err) {
+    console.error("List Members Error:", err);
+    res.status(500).json({ message: "Failed to fetch members" });
   }
-}
+};
 
-// Add a member to a board
-// controller.js
-async function addMember(req, res) {
+// ---------------- ADD MEMBER ----------------
+const addMember = async (req, res) => {
   const { boardId } = req.params;
   const { userId: userEmail, role } = req.body; // userId here is actually email
 
-  if (!boardId) return res.status(400).json({ message: 'Missing board id' });
-  if (!userEmail || !role) return res.status(400).json({ message: 'Missing user or role' });
+  if (!boardId || !userEmail || !role)
+    return res.status(400).json({ message: "Missing parameters" });
 
   try {
-    // 1. Find the user by email
-    const user = await prisma.user.findUnique({
-      where: { email: userEmail },
-    });
+    // Find user by email
+    const userResult = await pool.query(
+      `SELECT id, "firstName", "lastName", email FROM "User" WHERE email = $1`,
+      [userEmail]
+    );
+    const user = userResult.rows[0];
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    // Insert member
+    const memberResult = await pool.query(
+      `INSERT INTO "BoardMember" (id, "boardId", "userId", role, "createdAt")
+       VALUES (gen_random_uuid(), $1, $2, $3, NOW())
+       RETURNING *`,
+      [boardId, user.id, role]
+    );
+    const member = memberResult.rows[0];
 
-    // 2. Create the board member using the real userId
-    const newMember = await prisma.boardMember.create({
-      data: {
-        boardId,
-        userId: user.id,   // <-- real UUID
-        role,
-      },
-    });
-
-    return res.json({
-      id: newMember.id,
-      userId: newMember.userId,
-      role: newMember.role,
+    res.json({
+      id: member.id,
+      userId: member.userId,
+      role: member.role,
       user: {
         id: user.id,
         firstName: user.firstName,
@@ -68,52 +72,65 @@ async function addMember(req, res) {
       },
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error("Add Member Error:", err);
+    res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
-
-// Update a member's role
-async function updateMemberRole(req, res) {
+// ---------------- UPDATE MEMBER ROLE ----------------
+const updateMemberRole = async (req, res) => {
   const { boardId, userId } = req.params;
   const { role } = req.body;
 
-  if (!role) return res.status(400).json({ message: 'role is required' });
+  if (!role) return res.status(400).json({ message: "role is required" });
 
   try {
-    const updatedMember = await prisma.boardMember.update({
-      where: { boardId_userId: { boardId, userId } },
-      data: { role },
-      select: {
-        id: true,
-        role: true,
-        user: { select: { id: true, firstName: true, lastName: true, email: true } },
-      },
+    const result = await pool.query(
+      `UPDATE "BoardMember" 
+       SET role = $1
+       WHERE "boardId" = $2 AND "userId" = $3
+       RETURNING id, role, "userId"`,
+      [role, boardId, userId]
+    );
+
+    if (result.rows.length === 0)
+      return res.status(404).json({ message: "Membership not found" });
+
+    // Fetch user details
+    const userResult = await pool.query(
+      `SELECT id, "firstName", "lastName", email FROM "User" WHERE id = $1`,
+      [userId]
+    );
+    const user = userResult.rows[0];
+
+    res.json({
+      id: result.rows[0].id,
+      role: result.rows[0].role,
+      user,
     });
-
-    res.json(updatedMember);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Failed to update member role' });
+  } catch (err) {
+    console.error("Update Member Role Error:", err);
+    res.status(500).json({ message: "Failed to update member role" });
   }
-}
+};
 
-// Remove a member from a board
-async function removeMember(req, res) {
+// ---------------- REMOVE MEMBER ----------------
+const removeMember = async (req, res) => {
   const { boardId, userId } = req.params;
 
   try {
-    await prisma.boardMember.delete({
-      where: { boardId_userId: { boardId, userId } },
-    });
+    await pool.query(
+      `DELETE FROM "BoardMember" WHERE "boardId" = $1 AND "userId" = $2`,
+      [boardId, userId]
+    );
     res.status(204).send();
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Failed to remove member' });
+  } catch (err) {
+    console.error("Remove Member Error:", err);
+    res.status(500).json({ message: "Failed to remove member" });
   }
-}
+};
 
+// Export all functions
 module.exports = {
   listMembers,
   addMember,

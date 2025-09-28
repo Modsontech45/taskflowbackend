@@ -1,66 +1,87 @@
-const prisma = require('../../config/prisma');
+const pool = require('../../config/db');
 
+// ---------------- CREATE TASK ----------------
 exports.createTask = async (req, res) => {
   try {
     const { boardId } = req.params;
     const { title, notes, startAt, endAt } = req.body;
 
-    const task = await prisma.task.create({
-      data: {
-        boardId,
-        title,
-        notes,
-        startAt: new Date(startAt),
-        endAt: new Date(endAt),
-        createdById: req.user.id,
-      },
-    });
+    const result = await pool.query(
+      `INSERT INTO "Task" (id, "boardId", title, notes, "startAt", "endAt", "createdById", "createdAt", "updatedAt")
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW())
+       RETURNING *`,
+      [boardId, title, notes, new Date(startAt), new Date(endAt), req.user.id]
+    );
 
-    res.status(201).json(task);
+    res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Create Task Error:', error);
     res.status(500).json({ message: 'Failed to create task' });
   }
 };
 
+// ---------------- LIST TASKS ----------------
 exports.listTasks = async (req, res) => {
   try {
     const { boardId } = req.params;
-    const tasks = await prisma.task.findMany({
-      where: { boardId },
-      orderBy: { startAt: 'asc' },
-    });
-    res.json(tasks);
+
+    const result = await pool.query(
+      `SELECT * FROM "Task" WHERE "boardId" = $1 ORDER BY "startAt" ASC`,
+      [boardId]
+    );
+
+    res.json(result.rows);
   } catch (error) {
     console.error('List Tasks Error:', error);
     res.status(500).json({ message: 'Failed to list tasks' });
   }
 };
 
+// ---------------- UPDATE TASK ----------------
 exports.updateTask = async (req, res) => {
   try {
     const { id } = req.params;
-    const data = { ...req.body };
+    const fields = [];
+    const values = [];
+    let idx = 1;
 
-    if (data.startAt) data.startAt = new Date(data.startAt);
-    if (data.endAt) data.endAt = new Date(data.endAt);
+    // dynamically build query
+    for (const [key, value] of Object.entries(req.body)) {
+      if (key === 'startAt' || key === 'endAt') {
+        fields.push(`"${key}" = $${idx}`);
+        values.push(new Date(value));
+      } else {
+        fields.push(`"${key}" = $${idx}`);
+        values.push(value);
+      }
+      idx++;
+    }
 
-    const task = await prisma.task.update({
-      where: { id },
-      data,
-    });
+    if (fields.length === 0)
+      return res.status(400).json({ message: 'No fields to update' });
 
-    res.json(task);
+    values.push(id);
+    const query = `
+      UPDATE "Task" SET ${fields.join(', ')}, "updatedAt" = NOW()
+      WHERE id = $${idx}
+      RETURNING *`;
+    const result = await pool.query(query, values);
+
+    if (result.rows.length === 0)
+      return res.status(404).json({ message: 'Task not found' });
+
+    res.json(result.rows[0]);
   } catch (error) {
     console.error('Update Task Error:', error);
     res.status(500).json({ message: 'Failed to update task' });
   }
 };
 
+// ---------------- DELETE TASK ----------------
 exports.deleteTask = async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.task.delete({ where: { id } });
+    const result = await pool.query(`DELETE FROM "Task" WHERE id = $1`, [id]);
     res.status(204).send();
   } catch (error) {
     console.error('Delete Task Error:', error);
@@ -68,25 +89,28 @@ exports.deleteTask = async (req, res) => {
   }
 };
 
+// ---------------- TOGGLE TASK ----------------
 exports.toggleTask = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const task = await prisma.task.findUnique({ where: { id } });
+    // get current task
+    const taskResult = await pool.query(`SELECT * FROM "Task" WHERE id = $1`, [id]);
+    const task = taskResult.rows[0];
     if (!task) return res.status(404).json({ message: 'Task not found' });
 
     const isNowDone = !task.isDone;
+    const status = isNowDone ? 'expired' : 'pending';
+    const doneAt = isNowDone ? new Date() : null;
 
-    const updatedTask = await prisma.task.update({
-      where: { id },
-      data: {
-        isDone: isNowDone,
-        doneAt: isNowDone ? new Date() : null,
-        status: isNowDone ? "expired" : "pending",
-      },
-    });
+    const updated = await pool.query(
+      `UPDATE "Task" SET "isDone" = $1, "doneAt" = $2, status = $3, "updatedAt" = NOW()
+       WHERE id = $4
+       RETURNING *`,
+      [isNowDone, doneAt, status, id]
+    );
 
-    res.json(updatedTask);
+    res.json(updated.rows[0]);
   } catch (error) {
     console.error('Toggle Task Error:', error);
     res.status(500).json({ message: 'Failed to toggle task' });

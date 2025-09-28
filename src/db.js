@@ -1,5 +1,4 @@
-
-const pkg = require("pg");
+import pkg from "pg";
 const { Pool } = pkg;
 
 const pool = new Pool({
@@ -9,4 +8,4 @@ const pool = new Pool({
   },
 });
 
-module.exports = pool;
+export default pool;

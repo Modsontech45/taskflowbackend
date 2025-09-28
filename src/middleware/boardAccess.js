@@ -1,29 +1,38 @@
-const prisma = require('../config/prisma');
+
 const { hasRoleOrAbove } = require('../utils/roles');
+const pool = require('../config/db');
 
 function requireBoardRole(minRole) {
   return async (req, res, next) => {
     const boardId = req.params.boardId || req.params.id;
     if (!boardId) return res.status(400).json({ message: 'Missing board id' });
 
-    // Owner or membership
-    const board = await prisma.board.findUnique({
-      where: { id: boardId },
-      select: { ownerId: true, members: { where: { userId: req.user.id }, select: { role: true } } }
-    });
-    if (!board) return res.status(404).json({ message: 'Board not found' });
+    try {
+      // Fetch ownerId and membership role for the current user
+      const result = await pool.query(
+        `SELECT b."ownerId", bm.role
+         FROM "Board" b
+         LEFT JOIN "BoardMember" bm
+           ON bm."boardId" = b.id AND bm."userId" = $1
+         WHERE b.id = $2`,
+        [req.user.id, boardId]
+      );
 
-    const effectiveRole = board.ownerId === req.user.id
-      ? 'OWNER'
-      : board.members[0]?.role || null;
+      const row = result.rows[0];
+      if (!row) return res.status(404).json({ message: 'Board not found' });
 
-    if (!effectiveRole || !hasRoleOrAbove(effectiveRole, minRole)) {
-      return res.status(403).json({ message: 'Forbidden' });
+      const effectiveRole = row.ownerId === req.user.id ? 'OWNER' : row.role;
+
+      if (!effectiveRole || !hasRoleOrAbove(effectiveRole, minRole)) {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
+
+      req.boardRole = effectiveRole;
+      next();
+    } catch (err) {
+      console.error('RequireBoardRole Error:', err);
+      res.status(500).json({ message: 'Internal server error' });
     }
-
-    req.boardRole = effectiveRole;
-    next();
   };
 }
-
 module.exports = { requireBoardRole };

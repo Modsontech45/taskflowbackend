@@ -3,7 +3,6 @@ const cors = require('cors');
 require('dotenv').config();
 
 
-const subscriptionRoutes = require("./subscription/routes/subscriptions");
 
 const authRoutes = require('./modules/auth/routes');
 const boardRoutes = require('./modules/boards/routes');
@@ -22,6 +21,7 @@ app.use((req, res, next) => {
 // CORS configuration
 const allowedOrigins = [
   "http://localhost:3000",
+  "http://localhost:5173",
   "https://taskflow-nine-henna.vercel.app",
 ];
 
