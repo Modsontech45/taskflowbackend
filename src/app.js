@@ -1,8 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-
-
+const cron = require('node-cron');
+const axios = require('axios');
 
 const authRoutes = require('./modules/auth/routes');
 const boardRoutes = require('./modules/boards/routes');
@@ -77,25 +77,15 @@ if (app._router && app._router.stack) {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server on ${PORT}`));
 
+const SERVER_URL = 'https://taskflowbackend-0hbp.onrender.com/';
 
-
-
-// GET /api/notifications → fetch all notifications for a user
-
-// POST /api/notifications → create a new notification (triggered on activity)
-
-// PATCH /api/notifications/:id/read → mark as read
-
-// Subscriptions:
-
-// GET /api/subscriptions/:userId → get user subscription info
-
-// POST /api/subscriptions → create/start subscription
-
-// PATCH /api/subscriptions/:userId → update subscription (e.g., when members are added/removed)
-
-// Profile:
-
-// GET /api/profile/:userId → fetch user profile info
-
-// PATCH /api/profile/:userId → update user profile
+// Cron job: every 5 minutes
+cron.schedule('*/5 * * * *', async () => {
+  try {
+    console.log(`[${new Date().toISOString()}] ⏰ Pinging server to keep alive...`);
+    const response = await axios.get(SERVER_URL);
+    console.log(`[${new Date().toISOString()}] ✅ Server responded with status: ${response.status}`);
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] ❌ Error pinging server:`, error.message);
+  }
+});
