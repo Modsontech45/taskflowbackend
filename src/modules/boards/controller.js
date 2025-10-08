@@ -53,7 +53,7 @@ const getBoard = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT b.*, 
-              json_agg(json_build_object('id', u.id, 'firstName', u."firstName", 'lastName', u."lastName", 'email', u.email, 'role', u.role)) 
+              json_agg(json_build_object('id', u.id, 'firstName', u."firstName", 'lastName', u."lastName", 'email', u.email, 'role', bm.role)) 
                 FILTER (WHERE u.id IS NOT NULL) AS members
        FROM "Board" b
        LEFT JOIN "BoardMember" bm ON bm."boardId" = b.id
