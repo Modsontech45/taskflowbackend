@@ -1,5 +1,5 @@
-const pool = require('../../config/db');
-
+const pool = require("../../config/db");
+const notificationService = require("../notifications/service");
 // ---------------- CREATE TASK ----------------
 exports.createTask = async (req, res) => {
   try {
@@ -12,11 +12,21 @@ exports.createTask = async (req, res) => {
        RETURNING *`,
       [boardId, title, notes, new Date(startAt), new Date(endAt), req.user.id]
     );
+    const newTask = result.rows[0];
 
-    res.status(201).json(result.rows[0]);
+    // fire notification (no await – async)
+    notificationService
+      .notifyBoardMembersOfNewTask({
+        boardId,
+        task: newTask,
+        creatorId: req.user.id,
+      })
+      .catch((err) => console.error("Notify Error:", err));
+
+    res.status(201).json(newTask);
   } catch (error) {
-    console.error('Create Task Error:', error);
-    res.status(500).json({ message: 'Failed to create task' });
+    console.error("Create Task Error:", error);
+    res.status(500).json({ message: "Failed to create task" });
   }
 };
 
@@ -32,8 +42,8 @@ exports.listTasks = async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error('List Tasks Error:', error);
-    res.status(500).json({ message: 'Failed to list tasks' });
+    console.error("List Tasks Error:", error);
+    res.status(500).json({ message: "Failed to list tasks" });
   }
 };
 
@@ -47,7 +57,7 @@ exports.updateTask = async (req, res) => {
 
     // dynamically build query
     for (const [key, value] of Object.entries(req.body)) {
-      if (key === 'startAt' || key === 'endAt') {
+      if (key === "startAt" || key === "endAt") {
         fields.push(`"${key}" = $${idx}`);
         values.push(new Date(value));
       } else {
@@ -58,22 +68,22 @@ exports.updateTask = async (req, res) => {
     }
 
     if (fields.length === 0)
-      return res.status(400).json({ message: 'No fields to update' });
+      return res.status(400).json({ message: "No fields to update" });
 
     values.push(id);
     const query = `
-      UPDATE "Task" SET ${fields.join(', ')}, "updatedAt" = NOW()
+      UPDATE "Task" SET ${fields.join(", ")}, "updatedAt" = NOW()
       WHERE id = $${idx}
       RETURNING *`;
     const result = await pool.query(query, values);
 
     if (result.rows.length === 0)
-      return res.status(404).json({ message: 'Task not found' });
+      return res.status(404).json({ message: "Task not found" });
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Update Task Error:', error);
-    res.status(500).json({ message: 'Failed to update task' });
+    console.error("Update Task Error:", error);
+    res.status(500).json({ message: "Failed to update task" });
   }
 };
 
@@ -84,8 +94,8 @@ exports.deleteTask = async (req, res) => {
     const result = await pool.query(`DELETE FROM "Task" WHERE id = $1`, [id]);
     res.status(204).send();
   } catch (error) {
-    console.error('Delete Task Error:', error);
-    res.status(500).json({ message: 'Failed to delete task' });
+    console.error("Delete Task Error:", error);
+    res.status(500).json({ message: "Failed to delete task" });
   }
 };
 
@@ -95,12 +105,14 @@ exports.toggleTask = async (req, res) => {
     const { id } = req.params;
 
     // get current task
-    const taskResult = await pool.query(`SELECT * FROM "Task" WHERE id = $1`, [id]);
+    const taskResult = await pool.query(`SELECT * FROM "Task" WHERE id = $1`, [
+      id,
+    ]);
     const task = taskResult.rows[0];
-    if (!task) return res.status(404).json({ message: 'Task not found' });
+    if (!task) return res.status(404).json({ message: "Task not found" });
 
     const isNowDone = !task.isDone;
-    const status = isNowDone ? 'expired' : 'pending';
+    const status = isNowDone ? "expired" : "pending";
     const doneAt = isNowDone ? new Date() : null;
 
     const updated = await pool.query(
@@ -112,7 +124,7 @@ exports.toggleTask = async (req, res) => {
 
     res.json(updated.rows[0]);
   } catch (error) {
-    console.error('Toggle Task Error:', error);
-    res.status(500).json({ message: 'Failed to toggle task' });
+    console.error("Toggle Task Error:", error);
+    res.status(500).json({ message: "Failed to toggle task" });
   }
 };
