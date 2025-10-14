@@ -55,7 +55,7 @@ app.use("/api/auth", authRoutes);
 
 app.use("/api/members", requireAuth(), memberRoutes);
 // Protected routes (require JWT)
-app.use("/api", requireAuth(), User);
+app.use("/api", User);
 app.use("/api/boards", requireAuth(), boardRoutes);
 app.use("/api/notifications", requireAuth(), notificationRoutes);
 app.use("/api", requireAuth(), taskRoutes); // /boards/:boardId/tasks and /tasks/:id
