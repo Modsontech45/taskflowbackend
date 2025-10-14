@@ -68,44 +68,25 @@ const getUserById = async (req, res) => {
   }
 };
 
-// ---------------- UPDATE USER ----------------
 const updateUser = async (req, res) => {
   const { id } = req.params;
-  const { name, email, password } = req.body;
-
-  if (!name && !email && !password) {
-    return res.status(400).json({ message: "At least one field must be provided" });
-  }
+  const { firstName, lastName, country, phone, bio } = req.body;
 
   try {
-    // Prepare fields and values dynamically
-    const fields: string[] = [];
-    const values: any[] = [];
-    let counter = 1;
-
-    if (name) {
-      fields.push(`name = $${counter++}`);
-      values.push(name);
-    }
-    if (email) {
-      fields.push(`email = $${counter++}`);
-      values.push(email);
-    }
-    if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      fields.push(`password = $${counter++}`);
-      values.push(hashedPassword);
-    }
-
-    values.push(id); // for WHERE clause
-
-    const query = `
-      UPDATE "User"
-      SET ${fields.join(", ")}, "updatedAt" = NOW()
-      WHERE id = $${counter}
-      RETURNING *`;
-
-    const result = await pool.query(query, values);
+    const result = await pool.query(
+      `UPDATE "User"
+       SET 
+         "firstName" = COALESCE($1, "firstName"),
+         "lastName" = COALESCE($2, "lastName"),
+         "country" = COALESCE($3, "country"),
+         "phone" = COALESCE($4, "phone"),
+         "bio" = COALESCE($5, "bio"),
+         "updatedAt" = NOW()
+       WHERE id = $6
+       RETURNING id, "firstName", "lastName", "country", "phone", "bio", email, "createdAt", "updatedAt"`
+      ,
+      [firstName, lastName, country, phone, bio, id]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "User not found" });
@@ -114,12 +95,6 @@ const updateUser = async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Update User Error:", error);
-
-    // Handle duplicate email error
-    if (error.code === "23505") {
-      return res.status(409).json({ message: "Email already registered" });
-    }
-
     res.status(500).json({ message: "Server error" });
   }
 };
