@@ -48,15 +48,12 @@ const getUsers = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-// ---------------- GET SINGLE USER ----------------
 const getUserById = async (req, res) => {
   const { id } = req.params;
 
   try {
     const result = await pool.query(
-      `SELECT id, name, email, "createdAt", "updatedAt" 
-       FROM "User" 
-       WHERE id = $1`,
+      `SELECT * FROM "User" WHERE id = $1`,
       [id]
     );
 
