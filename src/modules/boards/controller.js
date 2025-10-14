@@ -3,11 +3,18 @@ const pool = require("../../config/db");
 // ---------------- CREATE BOARD ----------------
 const createBoard = async (req, res) => {
   try {
+    // Optional: author name or email
+    const author = req.user?.name || req.user?.email || "Unknown";
+
     const result = await pool.query(
-      `INSERT INTO "Board" (id, name, "ownerId", "createdAt", "updatedAt")
-       VALUES (gen_random_uuid(), $1, $2, NOW(), NOW()) RETURNING *`,
-      [req.body.name, req.user.id]
+      `INSERT INTO "Board" 
+         (id, name, "ownerId", author, "createdAt", "updatedAt")
+       VALUES 
+         (gen_random_uuid(), $1, $2, $3, NOW(), NOW()) 
+       RETURNING *`,
+      [req.body.name, req.user.id, author]
     );
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error("Create Board Error:", err);
@@ -47,14 +54,23 @@ const listBoards = async (req, res) => {
   }
 };
 
+
 // ---------------- GET BOARD ----------------
 const getBoard = async (req, res) => {
   const boardId = req.params.id;
   try {
     const result = await pool.query(
       `SELECT b.*, 
-              json_agg(json_build_object('id', u.id, 'firstName', u."firstName", 'lastName', u."lastName", 'email', u.email, 'role', bm.role)) 
-                FILTER (WHERE u.id IS NOT NULL) AS members
+              b.author,  -- include author
+              json_agg(
+                json_build_object(
+                  'id', u.id, 
+                  'firstName', u."firstName", 
+                  'lastName', u."lastName", 
+                  'email', u.email, 
+                  'role', bm.role
+                )
+              ) FILTER (WHERE u.id IS NOT NULL) AS members
        FROM "Board" b
        LEFT JOIN "BoardMember" bm ON bm."boardId" = b.id
        LEFT JOIN "User" u ON u.id = bm."userId"

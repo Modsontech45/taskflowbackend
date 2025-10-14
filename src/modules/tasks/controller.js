@@ -6,12 +6,18 @@ exports.createTask = async (req, res) => {
     const { boardId } = req.params;
     const { title, notes, startAt, endAt } = req.body;
 
+    // Optional: author name or email
+    const author = req.user?.name || req.user?.email || "Unknown";
+
     const result = await pool.query(
-      `INSERT INTO "Task" (id, "boardId", title, notes, "startAt", "endAt", "createdById", "createdAt", "updatedAt")
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW())
+      `INSERT INTO "Task" 
+         (id, "boardId", title, notes, "startAt", "endAt", "createdById", author, "createdAt", "updatedAt")
+       VALUES 
+         (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
        RETURNING *`,
-      [boardId, title, notes, new Date(startAt), new Date(endAt), req.user.id]
+      [boardId, title, notes, new Date(startAt), new Date(endAt), req.user.id, author]
     );
+
     const newTask = result.rows[0];
 
     // fire notification (no await – async)
@@ -55,7 +61,7 @@ exports.updateTask = async (req, res) => {
     const values = [];
     let idx = 1;
 
-    // dynamically build query
+    // dynamically build query from request body
     for (const [key, value] of Object.entries(req.body)) {
       if (key === "startAt" || key === "endAt") {
         fields.push(`"${key}" = $${idx}`);
@@ -67,14 +73,24 @@ exports.updateTask = async (req, res) => {
       idx++;
     }
 
-    if (fields.length === 0)
-      return res.status(400).json({ message: "No fields to update" });
+    // ✅ include updatedBy (who updated the task)
+    // assuming you have user info in req.user or req.body.updatedBy
+    const updatedBy =
+      req.user?.name || req.user?.email || req.body.updatedBy || "Unknown";
 
+    fields.push(`"updatedBy" = $${idx}`);
+    values.push(updatedBy);
+    idx++;
+
+    // ✅ update query
     values.push(id);
     const query = `
-      UPDATE "Task" SET ${fields.join(", ")}, "updatedAt" = NOW()
+      UPDATE "Task"
+      SET ${fields.join(", ")}, "updatedAt" = NOW()
       WHERE id = $${idx}
-      RETURNING *`;
+      RETURNING *;
+    `;
+
     const result = await pool.query(query, values);
 
     if (result.rows.length === 0)
@@ -104,7 +120,7 @@ exports.toggleTask = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // get current task
+    // Get current task
     const taskResult = await pool.query(`SELECT * FROM "Task" WHERE id = $1`, [
       id,
     ]);
@@ -115,11 +131,21 @@ exports.toggleTask = async (req, res) => {
     const status = isNowDone ? "expired" : "pending";
     const doneAt = isNowDone ? new Date() : null;
 
+    // Get the user performing the toggle (assuming req.user exists)
+    const completedBy = isNowDone
+      ? req.user?.name || req.user?.email || "Unknown"
+      : null;
+
     const updated = await pool.query(
-      `UPDATE "Task" SET "isDone" = $1, "doneAt" = $2, status = $3, "updatedAt" = NOW()
-       WHERE id = $4
+      `UPDATE "Task" 
+       SET "isDone" = $1, 
+           "doneAt" = $2, 
+           status = $3, 
+           "completedBy" = $4,
+           "updatedAt" = NOW()
+       WHERE id = $5
        RETURNING *`,
-      [isNowDone, doneAt, status, id]
+      [isNowDone, doneAt, status, completedBy, id]
     );
 
     res.json(updated.rows[0]);
