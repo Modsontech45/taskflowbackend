@@ -8,8 +8,10 @@ const authRoutes = require("./modules/auth/routes");
 const boardRoutes = require("./modules/boards/routes");
 const taskRoutes = require("./modules/tasks/routes");
 const memberRoutes = require("./modules/members/routes");
+const messageRoutes = require("./messages/messageRoutes");
 const notificationRoutes = require("./modules/notifications/routes");
 const { requireAuth } = require("./middleware/auth");
+const friendRoutes = require("./friends/friendRoutes");
 // const paymentsroutes = require("./subscription/routes/payments");
 const User = require("./routes/userRoutes");
 const app = express();
@@ -47,12 +49,12 @@ app.use(express.json());
 
 // Root endpoint
 app.get("/", (_, res) => res.send("Task API running"));
-
+app.use("/api/friends", friendRoutes);
 // Auth routes — allow public routes for email verification & password reset
 app.use("/api/auth", authRoutes);
 // app.use("/api/subscriptions", subscriptionRoutes);
 // app.use("/api/payments", paymentsroutes); // Paystack callback route
-
+app.use("/api/messages", messageRoutes);
 app.use("/api/members", requireAuth(), memberRoutes);
 // Protected routes (require JWT)
 app.use("/api", User);
