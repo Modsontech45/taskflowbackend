@@ -1,18 +1,22 @@
 const pool = require("../../config/db");
-
-// ---------------- CREATE NOTIFICATION ----------------
+const { sendRealtimeNotification } = require("../../../notserver");
 const createNotification = async (userId, boardId, taskId, title, message) => {
   try {
-    await pool.query(
+    const result = await pool.query(
       `INSERT INTO "Notification" ("userId", "boardId","taskId", title, message)
-       VALUES ($1, $2, $3, $4, $5)`,
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [userId, boardId, taskId, title, message]
     );
+
+    const newNotification = result.rows[0];
+
+    // Send real-time notification via WebSocket
+    sendRealtimeNotification(userId, newNotification);
+
   } catch (err) {
     console.error("Create Notification Error:", err);
   }
 };
-
 // ---------------- GET USER NOTIFICATIONS ----------------
 const getUserNotifications = async (req, res) => {
   const userId = req.user.id;
