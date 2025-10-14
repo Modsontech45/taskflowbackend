@@ -40,7 +40,7 @@ const registerUser = async (req, res) => {
 const getUsers = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, name, email, "createdAt", "updatedAt" FROM "User" ORDER BY "createdAt" ASC`
+      `SELECT id, firstName, lastName, email, "createdAt", "updatedAt" FROM "User" ORDER BY "createdAt" ASC`
     );
     res.json(result.rows);
   } catch (error) {
