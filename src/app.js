@@ -11,6 +11,7 @@ const memberRoutes = require("./modules/members/routes");
 const notificationRoutes = require("./modules/notifications/routes");
 const { requireAuth } = require("./middleware/auth");
 // const paymentsroutes = require("./subscription/routes/payments");
+const User = require("./routes/userRoutes");
 const app = express();
 
 // Middleware to log all requests
@@ -54,6 +55,7 @@ app.use("/api/auth", authRoutes);
 
 app.use("/api/members", requireAuth(), memberRoutes);
 // Protected routes (require JWT)
+app.use("/api", requireAuth(), User);
 app.use("/api/boards", requireAuth(), boardRoutes);
 app.use("/api/notifications", requireAuth(), notificationRoutes);
 app.use("/api", requireAuth(), taskRoutes); // /boards/:boardId/tasks and /tasks/:id
