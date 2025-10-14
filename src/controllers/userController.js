@@ -3,44 +3,42 @@ const bcrypt = require("bcryptjs");
 
 // ---------------- REGISTER USER ----------------
 const registerUser = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { firstName, lastName, email, password, country, phone } = req.body;
 
-  if (!name || !email || !password)
+  if (!firstName || !lastName || !email || !password) {
     return res
       .status(400)
-      .json({ message: "Name, email, and password are required" });
+      .json({ message: "First name, last name, email, and password are required" });
+  }
 
   try {
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert user into database
     const result = await pool.query(
-      `INSERT INTO "User" (id, name, email, password, "createdAt", "updatedAt")
-       VALUES (gen_random_uuid(), $1, $2, $3, NOW(), NOW())
-       RETURNING id, name, email, "createdAt", "updatedAt"`,
-      [name, email, hashedPassword]
+      `INSERT INTO "User" 
+         (id, "firstName", "lastName", email, password, country, phone, "createdAt", "updatedAt")
+       VALUES 
+         (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW())
+       RETURNING id, "firstName", "lastName", email, country, phone, "createdAt", "updatedAt"`,
+      [firstName, lastName, email, hashedPassword, country || null, phone || null]
     );
 
-    const user = result.rows[0];
-    res.status(201).json(user);
+    res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error("Register User Error:", error);
-
-    // Check for duplicate email
     if (error.code === "23505") {
       return res.status(409).json({ message: "Email already registered" });
     }
-
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// ---------------- GET USERS ----------------
+// ---------------- GET ALL USERS ----------------
 const getUsers = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, firstName, lastName, email, "createdAt", "updatedAt" FROM "User" ORDER BY "createdAt" ASC`
+      `SELECT id, "firstName", "lastName", email, country, phone, "createdAt", "updatedAt" 
+       FROM "User" ORDER BY "createdAt" ASC`
     );
     res.json(result.rows);
   } catch (error) {
@@ -48,19 +46,15 @@ const getUsers = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// ---------------- GET USER BY ID ----------------
 const getUserById = async (req, res) => {
   const { id } = req.params;
-
   try {
-    const result = await pool.query(
-      `SELECT * FROM "User" WHERE id = $1`,
-      [id]
-    );
-
+    const result = await pool.query(`SELECT * FROM "User" WHERE id = $1`, [id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "User not found" });
     }
-
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Get User By ID Error:", error);
@@ -68,24 +62,23 @@ const getUserById = async (req, res) => {
   }
 };
 
+// ---------------- UPDATE USER ----------------
 const updateUser = async (req, res) => {
   const { id } = req.params;
-  const { firstName, lastName, country, phone, bio } = req.body;
+  const { firstName, lastName, country, phone } = req.body;
 
   try {
     const result = await pool.query(
       `UPDATE "User"
-       SET 
+       SET
          "firstName" = COALESCE($1, "firstName"),
          "lastName" = COALESCE($2, "lastName"),
-         "country" = COALESCE($3, "country"),
-         "phone" = COALESCE($4, "phone"),
-         "bio" = COALESCE($5, "bio"),
+         country = COALESCE($3, country),
+         phone = COALESCE($4, phone),
          "updatedAt" = NOW()
-       WHERE id = $6
-       RETURNING id, "firstName", "lastName", "country", "phone", "bio", email, "createdAt", "updatedAt"`
-      ,
-      [firstName, lastName, country, phone, bio, id]
+       WHERE id = $5
+       RETURNING id, "firstName", "lastName", email, country, phone, "createdAt", "updatedAt"`,
+      [firstName, lastName, country, phone, id]
     );
 
     if (result.rows.length === 0) {
