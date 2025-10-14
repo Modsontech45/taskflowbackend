@@ -6,7 +6,9 @@ const registerUser = async (req, res) => {
   const { name, email, password } = req.body;
 
   if (!name || !email || !password)
-    return res.status(400).json({ message: "Name, email, and password are required" });
+    return res
+      .status(400)
+      .json({ message: "Name, email, and password are required" });
 
   try {
     // Hash password
@@ -46,4 +48,30 @@ const getUsers = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-module.exports = { registerUser, getUsers };
+// ---------------- GET SINGLE USER ----------------
+const getUserById = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT id, name, email, "createdAt", "updatedAt" 
+       FROM "User" 
+       WHERE id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Get User By ID Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+module.exports = { registerUser, getUsers, getUserById };
+
+

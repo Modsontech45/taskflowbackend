@@ -5,5 +5,6 @@ const router = express.Router();
 
 router.post("/register", registerUser);
 router.get("/", getUsers);
+router.get("/profile/:id", getUserById);
 
 module.exports = router;
