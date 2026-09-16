@@ -1,27 +1,24 @@
-const nodemailer = require("nodemailer");
-
-const port = Number(process.env.SMTP_PORT || 465);
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.resend.com",
-  port,
-  secure: port === 465,
-  auth: {
-    user: process.env.SMTP_USER || "resend",
-    pass: process.env.SMTP_PASS || process.env.RESEND_API_KEY,
-  },
-});
+const axios = require("axios");
 
 async function sendMail({ to, subject, html }) {
-  const info = await transporter.sendMail({
-    from: process.env.EMAIL_FROM || process.env.FROM_EMAIL,
-    to,
-    subject,
-    html,
-  });
+  const response = await axios.post(
+    "https://api.resend.com/emails",
+    {
+      from: process.env.EMAIL_FROM,
+      to: Array.isArray(to) ? to : [to],
+      subject,
+      html,
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
 
-  console.log("📧 Email sent:", info.messageId);
-  return info;
+  console.log("📧 Email sent via Resend:", response.data.id);
+  return response.data;
 }
 
 module.exports = { sendMail };
