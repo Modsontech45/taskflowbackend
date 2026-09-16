@@ -33,9 +33,9 @@ const register = async (req, res) => {
     // Create verification token
     const token = randomToken();
     await pool.query(
-      `INSERT INTO "VerificationToken" (id, token, "userId", type, "expiresAt", "createdAt")
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW())`,
-      [token, user.id, "EMAIL_VERIFICATION", addHours(new Date(), 24)]
+      `INSERT INTO "VerificationToken" (id, token, "userId", "expiresAt", "createdAt")
+       VALUES (gen_random_uuid(), $1, $2, $3, NOW())`,
+      [token, user.id, addHours(new Date(), 24)]
     );
 
     // Send verification email
