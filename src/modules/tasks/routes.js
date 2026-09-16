@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ctrl = require('./controller');
+const commentCtrl = require('./commentsController');
 const { requireBoardRole } = require('../../middleware/boardAccess');
 const { z } = require('zod');
 
@@ -79,5 +80,10 @@ router.patch(
   requireBoardRole('EDITOR'),
   ctrl.toggleTask
 );
+
+// ===== Comments =====
+router.get('/boards/:boardId/tasks/:taskId/comments', requireBoardRole('VIEWER'), commentCtrl.getComments);
+router.post('/boards/:boardId/tasks/:taskId/comments', requireBoardRole('VIEWER'), commentCtrl.addComment);
+router.delete('/boards/:boardId/tasks/:taskId/comments/:commentId', requireBoardRole('VIEWER'), commentCtrl.deleteComment);
 
 module.exports = router;
