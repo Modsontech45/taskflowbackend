@@ -24,11 +24,14 @@ const listBoards = async (req, res) => {
   const userId = req.user.id;
   try {
     const result = await pool.query(
-      `SELECT b.*, 
+      `SELECT b.*,
+              u."firstName" AS "ownerFirstName",
+              u."lastName"  AS "ownerLastName",
               COALESCE(t.active_tasks, 0) AS "activeTasks",
-              json_agg(json_build_object('userId', m."userId", 'role', m.role)) 
+              json_agg(json_build_object('userId', m."userId", 'role', m.role))
                 FILTER (WHERE m."userId" IS NOT NULL) AS members
        FROM "Board" b
+       JOIN "User" u ON u.id = b."ownerId"
        LEFT JOIN (
          SELECT "boardId", COUNT(*) AS active_tasks
          FROM "Task"
@@ -39,7 +42,7 @@ const listBoards = async (req, res) => {
        WHERE b."ownerId" = $1 OR b.id IN (
          SELECT "boardId" FROM "BoardMember" WHERE "userId" = $1
        )
-       GROUP BY b.id, t.active_tasks
+       GROUP BY b.id, u."firstName", u."lastName", t.active_tasks
        ORDER BY b."createdAt" DESC`,
       [userId]
     );
@@ -57,22 +60,24 @@ const getBoard = async (req, res) => {
   const boardId = req.params.id;
   try {
     const result = await pool.query(
-      `SELECT b.*, 
-              b.author,  -- include author
+      `SELECT b.*,
+              o."firstName" AS "ownerFirstName",
+              o."lastName"  AS "ownerLastName",
               json_agg(
                 json_build_object(
-                  'id', u.id, 
-                  'firstName', u."firstName", 
-                  'lastName', u."lastName", 
-                  'email', u.email, 
+                  'id', u.id,
+                  'firstName', u."firstName",
+                  'lastName', u."lastName",
+                  'email', u.email,
                   'role', bm.role
                 )
               ) FILTER (WHERE u.id IS NOT NULL) AS members
        FROM "Board" b
+       JOIN "User" o ON o.id = b."ownerId"
        LEFT JOIN "BoardMember" bm ON bm."boardId" = b.id
        LEFT JOIN "User" u ON u.id = bm."userId"
        WHERE b.id = $1
-       GROUP BY b.id`,
+       GROUP BY b.id, o."firstName", o."lastName"`,
       [boardId]
     );
 
