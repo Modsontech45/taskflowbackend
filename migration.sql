@@ -150,6 +150,54 @@ CREATE INDEX idx_notification_board ON "Notification"("boardId");
 CREATE INDEX idx_notification_task ON "Notification"("taskId");
 
 -- ==========================================================
+-- FRIENDS
+-- ==========================================================
+CREATE TABLE "FriendRequest" (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sender_id UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+  receiver_id UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  CONSTRAINT uq_friend_request UNIQUE (sender_id, receiver_id)
+);
+
+CREATE TABLE "Friendship" (
+  user_id UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+  friend_id UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  PRIMARY KEY (user_id, friend_id)
+);
+
+CREATE INDEX idx_friendrequest_receiver ON "FriendRequest"(receiver_id);
+
+-- ==========================================================
+-- MESSAGING
+-- ==========================================================
+CREATE TABLE "Conversation" (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "createdAt" TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE "ConversationParticipant" (
+  "conversationId" UUID NOT NULL REFERENCES "Conversation"(id) ON DELETE CASCADE,
+  "userId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+  PRIMARY KEY ("conversationId", "userId")
+);
+
+CREATE TABLE "Message" (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "conversationId" UUID NOT NULL REFERENCES "Conversation"(id) ON DELETE CASCADE,
+  "authorId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+  text TEXT NOT NULL,
+  tags TEXT[] DEFAULT '{}',
+  "isRead" BOOLEAN DEFAULT FALSE,
+  "createdAt" TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_message_conv ON "Message"("conversationId");
+
+-- ==========================================================
 -- ENUMS (SUBSCRIPTION TYPES)
 -- ==========================================================
 CREATE TYPE "SubscriptionPlan" AS ENUM ('BASIC', 'TEAM');

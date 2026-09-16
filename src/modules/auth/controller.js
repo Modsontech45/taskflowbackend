@@ -38,15 +38,15 @@ const register = async (req, res) => {
       [token, user.id, addHours(new Date(), 24)]
     );
 
-    // Send verification email
+    // Send verification email (non-blocking — don't delay the response)
     const link = `${APP_URL}/verify-email?token=${token}`;
-    await sendMail({
+    sendMail({
       to: email,
       subject: "Verify your email",
       html: `<p>Hello ${firstName},</p>
              <p>Verify your account: <a href="${link}">Activate</a></p>
              <p>This link expires in 24 hours.</p>`,
-    });
+    }).catch(err => console.error("Email send failed:", err.message));
 
     console.log("Verification link (dev):", link);
     return res.status(201).json({ message: "Registered. Check your email to verify." });
@@ -149,11 +149,11 @@ const forgotPassword = async (req, res) => {
     );
 
     const link = `${APP_URL}/reset-password?token=${token}`;
-    await sendMail({
+    sendMail({
       to: email,
       subject: "Reset your password",
       html: `<p>Reset your password:</p><p><a href="${link}">Reset Link</a> (valid 2 hours)</p>`,
-    });
+    }).catch(err => console.error("Email send failed:", err.message));
     console.log("Password reset link (dev):", link);
 
     return res.json({ message: "If your email exists, you will receive a link." });

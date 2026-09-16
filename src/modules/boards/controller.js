@@ -3,16 +3,13 @@ const pool = require("../../config/db");
 // ---------------- CREATE BOARD ----------------
 const createBoard = async (req, res) => {
   try {
-    // Optional: author name or email
-    const author = req.user?.name || req.user?.email || "Unknown";
-
     const result = await pool.query(
-      `INSERT INTO "Board" 
-         (id, name, "ownerId", author, "createdAt", "updatedAt")
-       VALUES 
-         (gen_random_uuid(), $1, $2, $3, NOW(), NOW()) 
+      `INSERT INTO "Board"
+         (id, name, "ownerId", "createdAt", "updatedAt")
+       VALUES
+         (gen_random_uuid(), $1, $2, NOW(), NOW())
        RETURNING *`,
-      [req.body.name, req.user.id, author]
+      [req.body.name, req.user.id]
     );
 
     res.status(201).json(result.rows[0]);

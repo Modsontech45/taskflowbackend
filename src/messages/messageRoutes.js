@@ -1,28 +1,14 @@
 const express = require("express");
-const {
-  sendMessage,
-  getConversation,
-  getInbox,
-  markAsRead,
-  deleteMessage,
-  searchUsers ,
-} = require("./messageController");
-
+const ctrl = require("./messageController");
+const { requireAuth } = require("../middleware/auth");
 const router = express.Router();
 
-// Send a message
-router.post("/", sendMessage);
-router.get("/users/search", searchUsers);
-// Get conversation between two users
-router.get("/conversation/:userA/:userB", getConversation);
+router.use(requireAuth());
 
-// Get a user's inbox
-router.get("/inbox/:userId", getInbox);
-
-// Mark a message as read
-router.patch("/:id/read", markAsRead);
-
-// Delete a message
-router.delete("/:id", deleteMessage);
+router.get("/users/search", ctrl.searchUsers);
+router.post("/conversations", ctrl.createConversation);
+router.get("/conversations", ctrl.getConversations);
+router.get("/conversations/:id/messages", ctrl.getMessages);
+router.post("/conversations/:id/messages", ctrl.sendMessage);
 
 module.exports = router;
