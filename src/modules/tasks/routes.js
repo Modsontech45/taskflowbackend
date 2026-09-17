@@ -20,6 +20,7 @@ const validate = (schema) => (req, res, next) => {
 
 // ===== Task Schemas =====
 const PRIORITY = z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional();
+const RECURRING = z.enum(['NONE', 'DAILY', 'WEEKLY', 'MONTHLY']).optional();
 
 const createTaskSchema = z.object({
   title: z.string().min(1),
@@ -28,6 +29,7 @@ const createTaskSchema = z.object({
   endAt: z.string().datetime(),
   priority: PRIORITY,
   assigneeId: z.string().uuid().optional().nullable(),
+  recurringType: RECURRING,
 });
 
 const updateTaskSchema = z.object({
@@ -38,6 +40,7 @@ const updateTaskSchema = z.object({
   isDone: z.boolean().optional(),
   priority: PRIORITY,
   assigneeId: z.string().uuid().optional().nullable(),
+  recurringType: RECURRING,
 });
 
 // ===== Routes =====
@@ -85,6 +88,13 @@ router.patch(
   '/boards/:boardId/tasks/:id/toggle',
   requireBoardRole('EDITOR'),
   ctrl.toggleTask
+);
+
+// Duplicate Task (EDITOR+)
+router.post(
+  '/boards/:boardId/tasks/:id/duplicate',
+  requireBoardRole('EDITOR'),
+  ctrl.duplicateTask
 );
 
 // ===== Comments =====
