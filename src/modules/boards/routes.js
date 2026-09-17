@@ -28,7 +28,7 @@ function validate(schema) {
 // Create a new board
 router.post(
   '/create',
-  validate(z.object({ name: z.string().min(1) })),
+  validate(z.object({ name: z.string().min(1), color: z.string().optional(), emoji: z.string().optional() })),
   ctrl.createBoard
 );
 
@@ -42,7 +42,7 @@ router.get('/:id', requireBoardRole('VIEWER'), ctrl.getBoard);
 router.patch(
   '/:id',
   requireBoardRole('OWNER'),
-  validate(z.object({ name: z.string().min(1) })),
+  validate(z.object({ name: z.string().min(1), color: z.string().optional(), emoji: z.string().optional() })),
   ctrl.renameBoard
 );
 

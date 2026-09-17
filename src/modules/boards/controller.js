@@ -3,13 +3,14 @@ const pool = require("../../config/db");
 // ---------------- CREATE BOARD ----------------
 const createBoard = async (req, res) => {
   try {
+    const { name, color = '#3b82f6', emoji = '📋' } = req.body;
     const result = await pool.query(
       `INSERT INTO "Board"
-         (id, name, "ownerId", "createdAt", "updatedAt")
+         (id, name, "ownerId", color, emoji, "createdAt", "updatedAt")
        VALUES
-         (gen_random_uuid(), $1, $2, NOW(), NOW())
+         (gen_random_uuid(), $1, $2, $3, $4, NOW(), NOW())
        RETURNING *`,
-      [req.body.name, req.user.id]
+      [name, req.user.id, color, emoji]
     );
 
     res.status(201).json(result.rows[0]);
@@ -93,9 +94,16 @@ const getBoard = async (req, res) => {
 // ---------------- RENAME BOARD ----------------
 const renameBoard = async (req, res) => {
   try {
+    const { name, color, emoji } = req.body;
     const result = await pool.query(
-      `UPDATE "Board" SET name = $1, "updatedAt" = NOW() WHERE id = $2 RETURNING *`,
-      [req.body.name, req.params.id]
+      `UPDATE "Board"
+       SET name = $1,
+           color = COALESCE($2, color),
+           emoji = COALESCE($3, emoji),
+           "updatedAt" = NOW()
+       WHERE id = $4
+       RETURNING *`,
+      [name, color ?? null, emoji ?? null, req.params.id]
     );
     res.json(result.rows[0]);
   } catch (err) {

@@ -4,15 +4,15 @@ const notificationService = require("../notifications/service");
 exports.createTask = async (req, res) => {
   try {
     const { boardId } = req.params;
-    const { title, notes, startAt, endAt } = req.body;
+    const { title, notes, startAt, endAt, priority = 'MEDIUM', assigneeId = null } = req.body;
 
     const result = await pool.query(
       `INSERT INTO "Task"
-         (id, "boardId", title, notes, "startAt", "endAt", "createdById", "createdAt", "updatedAt")
+         (id, "boardId", title, notes, "startAt", "endAt", priority, "assigneeId", "createdById", "createdAt", "updatedAt")
        VALUES
-         (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW())
+         (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
        RETURNING *`,
-      [boardId, title, notes, new Date(startAt), new Date(endAt), req.user.id]
+      [boardId, title, notes, new Date(startAt), new Date(endAt), priority, assigneeId, req.user.id]
     );
 
     const newTask = result.rows[0];
@@ -45,9 +45,18 @@ exports.listTasks = async (req, res) => {
                 'firstName', u."firstName",
                 'lastName', u."lastName",
                 'email', u.email
-              ) AS "createdBy"
+              ) AS "createdBy",
+              CASE WHEN a.id IS NOT NULL THEN
+                json_build_object(
+                  'id', a.id,
+                  'firstName', a."firstName",
+                  'lastName', a."lastName",
+                  'email', a.email
+                )
+              ELSE NULL END AS "assignee"
        FROM "Task" t
        LEFT JOIN "User" u ON u.id = t."createdById"
+       LEFT JOIN "User" a ON a.id = t."assigneeId"
        WHERE t."boardId" = $1
        ORDER BY t."isDone" ASC, t."endAt" ASC`,
       [boardId]

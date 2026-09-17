@@ -19,11 +19,15 @@ const validate = (schema) => (req, res, next) => {
 };
 
 // ===== Task Schemas =====
+const PRIORITY = z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional();
+
 const createTaskSchema = z.object({
   title: z.string().min(1),
   notes: z.string().optional(),
   startAt: z.string().datetime(),
   endAt: z.string().datetime(),
+  priority: PRIORITY,
+  assigneeId: z.string().uuid().optional().nullable(),
 });
 
 const updateTaskSchema = z.object({
@@ -32,6 +36,8 @@ const updateTaskSchema = z.object({
   startAt: z.string().datetime().optional(),
   endAt: z.string().datetime().optional(),
   isDone: z.boolean().optional(),
+  priority: PRIORITY,
+  assigneeId: z.string().uuid().optional().nullable(),
 });
 
 // ===== Routes =====
