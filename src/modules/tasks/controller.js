@@ -39,7 +39,17 @@ exports.listTasks = async (req, res) => {
     const { boardId } = req.params;
 
     const result = await pool.query(
-      `SELECT * FROM "Task" WHERE "boardId" = $1 ORDER BY "startAt" ASC`,
+      `SELECT t.*,
+              json_build_object(
+                'id', u.id,
+                'firstName', u."firstName",
+                'lastName', u."lastName",
+                'email', u.email
+              ) AS "createdBy"
+       FROM "Task" t
+       LEFT JOIN "User" u ON u.id = t."createdById"
+       WHERE t."boardId" = $1
+       ORDER BY t."isDone" ASC, t."endAt" ASC`,
       [boardId]
     );
 

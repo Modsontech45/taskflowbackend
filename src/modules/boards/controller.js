@@ -85,8 +85,8 @@ const getBoard = async (req, res) => {
     if (!board) return res.status(404).json({ message: "Not found" });
     res.json(board);
   } catch (err) {
-    console.error("Get Board Error:", err);
-    res.status(500).json({ message: "Failed to get board" });
+    console.error("Get Board Error:", err.message, err.stack);
+    res.status(500).json({ message: "Failed to get board", detail: err.message });
   }
 };
 
